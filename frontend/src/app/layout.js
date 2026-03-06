@@ -1,4 +1,5 @@
 import './globals.css';
+import Providers from './providers';
 
 export const metadata = {
   title: 'Job Application Tracker',
@@ -9,7 +10,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="bg-gray-50 min-h-screen">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

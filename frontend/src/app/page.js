@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import ApplicationTable from './components/ApplicationTable';
 import ApplicationForm from './components/ApplicationForm';
 
 const STATUSES = ['all', 'applied', 'interview', 'offer', 'rejected'];
 
 export default function Dashboard() {
+  const { data: session } = useSession();
   const [applications, setApplications] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
@@ -14,13 +16,19 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const authHeaders = {
+    'Content-Type': 'application/json',
+    ...(session?.backendToken && { Authorization: `Bearer ${session.backendToken}` }),
+  };
+
   const fetchApplications = useCallback(async () => {
+    if (!session?.backendToken) return;
     try {
       setLoading(true);
       const url = statusFilter === 'all'
         ? '/api/applications'
         : `/api/applications?status=${statusFilter}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${session.backendToken}` } });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setApplications(data);
@@ -30,7 +38,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, session?.backendToken]);
 
   useEffect(() => {
     fetchApplications();
@@ -39,7 +47,7 @@ export default function Dashboard() {
   async function handleCreate(form) {
     const res = await fetch('/api/applications', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify(form),
     });
     if (res.ok) {
@@ -51,7 +59,7 @@ export default function Dashboard() {
   async function handleUpdate(form) {
     const res = await fetch(`/api/applications/${editingApp.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify(form),
     });
     if (res.ok) {
@@ -62,7 +70,10 @@ export default function Dashboard() {
 
   async function handleDelete(id) {
     if (!confirm('Delete this application?')) return;
-    const res = await fetch(`/api/applications/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/applications/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${session.backendToken}` },
+    });
     if (res.ok) fetchApplications();
   }
 
@@ -73,12 +84,24 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Job Application Tracker</h1>
           <p className="text-sm text-gray-500 mt-1">{applications.length} application{applications.length !== 1 ? 's' : ''}</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          + Add Application
-        </button>
+        <div className="flex items-center gap-4">
+          {session?.user?.image && (
+            <img src={session.user.image} alt="" className="w-8 h-8 rounded-full" />
+          )}
+          <span className="text-sm text-gray-700">{session?.user?.name}</span>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="text-sm text-red-600 hover:text-red-800"
+          >
+            Logout
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            + Add Application
+          </button>
+        </div>
       </div>
 
       {/* Status Filter */}
