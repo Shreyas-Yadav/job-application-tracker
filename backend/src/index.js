@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const { initSchema } = require('./db');
 const applicationsRouter = require('./routes/applications');
+const usersRouter = require('./routes/users');
+const authMiddleware = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,7 +16,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.use('/api/applications', applicationsRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/applications', authMiddleware, applicationsRouter);
 
 async function start() {
   try {

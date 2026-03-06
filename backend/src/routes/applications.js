@@ -6,11 +6,11 @@ const { pool } = require('../db');
 router.get('/', async (req, res) => {
   try {
     const { status } = req.query;
-    let query = 'SELECT * FROM job_applications ORDER BY created_at DESC';
-    const params = [];
+    let query = 'SELECT * FROM job_applications WHERE user_id = ? ORDER BY created_at DESC';
+    const params = [req.user.id];
 
     if (status) {
-      query = 'SELECT * FROM job_applications WHERE status = ? ORDER BY created_at DESC';
+      query = 'SELECT * FROM job_applications WHERE user_id = ? AND status = ? ORDER BY created_at DESC';
       params.push(status);
     }
 
@@ -32,8 +32,8 @@ router.post('/', async (req, res) => {
     }
 
     const [result] = await pool.execute(
-      'INSERT INTO job_applications (company, role, status, date_applied) VALUES (?, ?, ?, ?)',
-      [company, role, status, date_applied || null]
+      'INSERT INTO job_applications (company, role, status, date_applied, user_id) VALUES (?, ?, ?, ?, ?)',
+      [company, role, status, date_applied || null, req.user.id]
     );
 
     const [rows] = await pool.execute(
@@ -55,8 +55,8 @@ router.put('/:id', async (req, res) => {
     const { company, role, status, date_applied } = req.body;
 
     const [existing] = await pool.execute(
-      'SELECT * FROM job_applications WHERE id = ?',
-      [id]
+      'SELECT * FROM job_applications WHERE id = ? AND user_id = ?',
+      [id, req.user.id]
     );
 
     if (existing.length === 0) {
@@ -71,13 +71,13 @@ router.put('/:id', async (req, res) => {
     };
 
     await pool.execute(
-      'UPDATE job_applications SET company = ?, role = ?, status = ?, date_applied = ? WHERE id = ?',
-      [updated.company, updated.role, updated.status, updated.date_applied, id]
+      'UPDATE job_applications SET company = ?, role = ?, status = ?, date_applied = ? WHERE id = ? AND user_id = ?',
+      [updated.company, updated.role, updated.status, updated.date_applied, id, req.user.id]
     );
 
     const [rows] = await pool.execute(
-      'SELECT * FROM job_applications WHERE id = ?',
-      [id]
+      'SELECT * FROM job_applications WHERE id = ? AND user_id = ?',
+      [id, req.user.id]
     );
 
     res.json(rows[0]);
@@ -93,8 +93,8 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
 
     const [result] = await pool.execute(
-      'DELETE FROM job_applications WHERE id = ?',
-      [id]
+      'DELETE FROM job_applications WHERE id = ? AND user_id = ?',
+      [id, req.user.id]
     );
 
     if (result.affectedRows === 0) {
